@@ -123,11 +123,13 @@ function App() {
   // ---- state ----
   const [search, setSearch] = React.useState('');
   const [searchSide, setSearchSide] = React.useState('both');  // filter results to one side
-  const [hemisphere, setHemisphere] = React.useState('left');
+  const [hemisphere, setHemisphere] = React.useState('both');
   const [cortexOpacity, setCortexOpacity] = React.useState(1);
   const [layerOn, setLayerOn] = React.useState(() => { const o = {}; CAT_ORDER.forEach(c => o[c] = ['cortex', 'cerebellum', 'brainstem'].includes(c)); return o; });
   const [expanded, setExpanded] = React.useState(() => new Set());
   const [selectedId, setSelectedId] = React.useState(null);
+  const [musicGroupIds, setMusicGroupIds] = React.useState(null);
+  const [musicSide, setMusicSide] = React.useState("both");
   const [isolatedIds, setIsolatedIds] = React.useState(null);
   const [activePreset, setActivePreset] = React.useState('whole');
   const [collapsed, setCollapsed] = React.useState(false);
@@ -212,7 +214,7 @@ function App() {
           if (key && quizPickRef.current) quizPickRef.current(key);
           return;
         }
-        if (id != null) { setSelectedId(id); setHint(false); } else setSelectedId(null);
+        if (id != null) { setMusicGroupIds(null); setSelectedId(id); setHint(false); } else { setMusicGroupIds(null); setSelectedId(null); }
       },
       onHover: (id) => setHover(h => id != null ? { id } : null),
       onVR: (active) => setVrActive(active),
@@ -250,9 +252,9 @@ function App() {
       });
     }
     s.setSubset(subsetMap);
-    if (selectedId != null) s.selectNode(selectedId); else s.clearSelect();
+    if (musicGroupIds && musicGroupIds.length) s.selectNodes(musicGroupIds); else if (selectedId != null) s.selectNode(selectedId); else s.clearSelect();
     if (firstCompose.current) { s.snap(); firstCompose.current = false; }
-  }, [layerOn, cortexOpacity, hemisphere, q, matchedCats, isolatedIds, selectedId, activePreset]);
+  }, [layerOn, cortexOpacity, hemisphere, q, matchedCats, isolatedIds, selectedId, musicGroupIds, activePreset]);
 
   React.useEffect(() => { sceneRef.current && sceneRef.current.setAutoRotate(t.autorotate); }, [t.autorotate]);
   React.useEffect(() => { sceneRef.current && sceneRef.current.setExposure(t.glow); }, [t.glow]);
@@ -275,8 +277,8 @@ function App() {
   const onExpand = (cat) => setExpanded(s => { const n = new Set(s); n.has(cat) ? n.delete(cat) : n.add(cat); return n; });
   const showAll = () => { setActivePreset(null); setLayerOn(() => { const o = {}; CAT_ORDER.forEach(c => o[c] = true); return o; }); setDepthStop(0); };
   const hideAll = () => { setActivePreset(null); setLayerOn(() => { const o = {}; CAT_ORDER.forEach(c => o[c] = false); return o; }); };
-  const selectNode = (id) => { setSelectedId(id); setHint(false); };
-  const focusNode = (id) => { sceneRef.current && sceneRef.current.focusNode(id); setSelectedId(id); setFocusedId(id); setHint(false); };
+  const selectNode = (id) => { setMusicGroupIds(null); setSelectedId(id); setHint(false); };
+  const focusNode = (id) => { setMusicGroupIds(null); sceneRef.current && sceneRef.current.focusNode(id); setSelectedId(id); setFocusedId(id); setHint(false); };
   // toggling focus for the selection card: a second press is its own undo (reset view)
   const toggleFocus = (id) => {
     if (focusedId === id) { sceneRef.current && sceneRef.current.reset(); setFocusedId(null); }
@@ -291,7 +293,7 @@ function App() {
   const exitVR = () => { const s = sceneRef.current; if (s) s.vr.exit(); };
   const reset = () => {
     setActivePreset('whole'); applyPreset(PRESETS[0], false);
-    setHemisphere('left'); setIsolatedIds(null); setSearch(''); setSelectedId(null); setFocusedId(null);
+    setHemisphere('both'); setMusicSide('both'); setMusicGroupIds(null); setIsolatedIds(null); setSearch(''); setSelectedId(null); setFocusedId(null);
     sceneRef.current && sceneRef.current.reset();
   };
 
@@ -641,21 +643,37 @@ function App() {
 
       <div className="music-guide">
         <div className="music-guide-title">♫ IL CERVELLO CHE SUONA</div>
-        <div className="music-guide-sub">Scegli una struttura: il modello la seleziona e apre la spiegazione.</div>
+        <div className="music-guide-sub">Seleziona una struttura e scegli quali emisferi evidenziare.</div>
+        <div className="music-side-options" role="group" aria-label="Emisferi da evidenziare">
+          {[["both","Entrambi"],["left","Sinistro"],["right","Destro"]].map(([side,label]) =>
+            <button key={side} aria-pressed={musicSide===side} className={musicSide===side?"active":""}
+              onClick={() => { setMusicSide(side); setMusicGroupIds(null); setSelectedId(null); setHemisphere(side); }}>{label}</button>)}
+        </div>
         <div className="music-guide-list">
-          {(window.MUSIC_ATLAS || []).map((m, i) => {
-            const match = nodes.find(n => m.atlasLabels.includes(n.label));
-            return <button key={i} onClick={() => { if (match) focusNode(match.id); }} disabled={!match}
-              title={m.name}>{m.name}</button>;
+          {(window.MUSIC_ATLAS || []).map((m,i) => {
+            const matches = nodes.filter(n => m.atlasLabels.includes(n.label) &&
+              (n.side === "median" || musicSide === "both" || n.side === musicSide));
+            return <button key={i} disabled={!matches.length} title={m.name}
+              onClick={() => {
+                if (!matches.length) return;
+                const ids = matches.map(n=>n.id);
+                setHemisphere(musicSide);
+                setMusicGroupIds(ids);
+                setSelectedId(ids[0]);
+                setFocusedId(null);
+                setHint(false);
+                sceneRef.current && sceneRef.current.frameNodes(ids, 2.5);
+              }}>{m.name}</button>;
           })}
         </div>
+        <small className="music-guide-note">Le strutture mediane, come il corpo calloso, non hanno una coppia destra/sinistra. Alcune aree funzionali sono rappresentate da riferimenti anatomici più ampi.</small>
       </div>
 
       <SelectionCard node={selNode} color={selNode ? PAL[selNode.category] : null}
         catLabel={selNode ? cats[selNode.category].label : ''} description={description} related={related}
         lessons={selNode ? window.SYS.lessonsForLabel(selNode.label) : []}
         onOpenLesson={(id) => { setSelectedId(null); openLesson(id); }}
-        onSelect={selectNode} onRelated={focusNode} onFocus={toggleFocus} onIsolate={isolateNode} onClose={() => setSelectedId(null)}
+        onSelect={selectNode} onRelated={focusNode} onFocus={toggleFocus} onIsolate={isolateNode} onClose={() => { setMusicGroupIds(null); setSelectedId(null); }}
         isolated={!!isolatedIds} focused={selNode && focusedId === selNode.id} onClearIsolate={clearIsolate} mobile={mobile} />
 
       {/* SYSTEMS narration (free stepping) */}
