@@ -260,6 +260,14 @@
       if (ms) ms.forEach(m => selectedIds.add(m));
       else { selectedIds = new Set(); }
     }
+    function selectNodes(ids) {
+      req.selected = ids && ids.length ? ids[0] : null;
+      selectedIds = new Set();
+      (ids || []).forEach(id => {
+        const ms = meshById.get(id);
+        if (ms) ms.forEach(m => selectedIds.add(m));
+      });
+    }
     function clearSelect() { req.selected = null; selectedIds = new Set(); }
 
     function isolate(ids) {
@@ -904,7 +912,7 @@
     return {
       THREE: T, scene, camera, renderer, cats,
       setLayer, setLayers, setHemisphere, focusCategory, focusNode,
-      selectNode, clearSelect, reset, frameSphere, snap, isolate, setSubset, zoom,
+      selectNode, selectNodes, clearSelect, reset, frameSphere, snap, isolate, setSubset, zoom,
       setHighlight, clearHighlight, frameNodes,
       setAutoRotate, setExposure, setBackground, setPalette, capturePoster, vr, setVRInfo, setVRControls, setVRNarration,
       dispose() { try { const s = renderer.xr.getSession(); if (s) s.end(); } catch (e) {} renderer.setAnimationLoop(null); ro.disconnect(); renderer.dispose(); },
