@@ -160,3 +160,5 @@ button { font-family: inherit; cursor: pointer; }
 .music-message{padding:10px;background:#c5ece1;border-left:3px solid #128c78;font-size:13px;font-weight:800;line-height:1.5;border-radius:5px}
 .music-caveat{display:block;margin-top:9px;color:#4d6c66;line-height:1.4}
 @media(max-width:700px){.music-guide{left:8px;bottom:8px;width:205px;padding:9px}.music-guide-list{max-height:75px}.music-guide-list button{font-size:10px;padding:5px}}
+
+.music-side-options{display:flex;gap:5px;margin:8px 0}.music-side-options button{flex:1}.music-side-options button.active{background:#178e7b;border-color:#a3f4dc}.music-guide-note{display:block;font-size:10px;line-height:1.4;color:#c5dce1;margin-top:9px}
